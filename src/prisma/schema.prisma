@@ -1,0 +1,180 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Permissions {
+  MANAGE_VENDORS
+  MANAGE_ORDERS
+  SEND_NOTIFICATIONS
+  MANAGE_DELIVERIES
+  MANAGE_ADMINS
+  MANAGE_PRODUCTS
+}
+
+enum UserRole {
+  ADMIN
+  COMPANY_ADMIN
+  DELIVERY
+  CLIENT
+}
+
+enum OrderStatus {
+  STARTED
+  ACCEPTED
+  RECEIVED
+  DELIVERED
+  CANCELED
+  POSTPOND
+}
+
+enum NotificationTopic {
+  ADMIN
+  COMPANY_ADMIN
+  DELIVERY
+  ALL
+}
+
+
+model User {
+  id                Int             @id @default(autoincrement())
+  phone             String          @unique
+  name              String?
+  avatar            String?       @default("uploads/user.png")
+  fcm               String?
+  password          String
+  token             String?
+  refresh_token     String[]
+  role              UserRole
+  notifications     Notification[]
+  deleted           Boolean         @default(false)
+  active            Boolean         @default(false)
+  deletedAt         DateTime?
+  timeline          OrderTimeline[]
+  // relations---------------------------------------------------------------------//
+  company            Company?
+  delivery           Delivery?
+  admin              Admin?
+  // --- OTHER --------------------------------------------------------------------- //
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+
+model Delivery {
+  id                Int               @id 
+  code              String          @unique
+  longitudes        String?
+  latitude          String?
+  online            Boolean           @default(false)  
+  worksFroms        String             @default("9am")
+  worksTo           String             @default("5pm")
+  orders            Order[]
+  user              User              @relation(fields: [id], references: [id], onDelete: Cascade)
+  companyId         Int?
+  company           Company?          @relation(fields: [companyId], references: [id])
+}
+
+model Admin {
+  id              Int               @id 
+  superAdmin      Boolean            @default(false)  
+  permissions     Permissions[]
+  user            User              @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+model Company {
+  id                      Int          @id
+  address                 String?
+  longitudes              String?
+  latitude                String?
+  min                     Int?
+  max                     Int?
+  deliveryPrecent         Int?
+  supscriptionStartDate   DateTime?
+  supscriptionEndDate     DateTime?
+  orders                  Order[]
+  deliveries              Delivery[]
+  clients                 Client[]
+  user                    User         @relation(fields: [id], references: [id], onDelete: Cascade)
+  //-------------------------------------------------------------------------------
+}
+model Client {
+  id                Int             @id @default(autoincrement())
+  phone             String          @unique
+  name              String?
+  address              String?
+  companyId         Int?
+  company           Company?          @relation(fields: [companyId], references: [id])
+  orders            Order[]
+  // --- OTHER --------------------------------------------------------------------- //
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+
+model Notification {
+  // --- IDENTIFICATION --------------------------------------------------------------------- //
+  id        Int                @id @default(autoincrement())
+  // --- DETAILS --------------------------------------------------------------------------- //
+  title     String
+  content   String             @default("")
+  topic     NotificationTopic?
+  // --- FOREIGN KEYS --------------------------------------------------------------------------- //
+  userId    Int?
+  // --- RELATIONS --------------------------------------------------------------------------- //
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // --- STATUS --------------------------------------------------------------------------- //
+  seen      Boolean            @default(false)
+  // --- OTHER --------------------------------------------------------------------- //
+  createdAt DateTime           @default(now())
+
+  @@index([userId])
+}
+
+model Order{
+  id                Int             @id @default(autoincrement())
+  total             Float           @default(0)
+  shipping          Float           @default(0)
+  deliveryFee      Float           @default(0)
+  notes             String?
+  from              String?
+  to                String?
+  status            OrderStatus     @default(STARTED)
+  deliveryId        Int?
+  clientId          Int?
+  delivery          Delivery?       @relation(fields: [deliveryId], references: [id])
+  companyId         Int?
+  company           Company?         @relation(fields: [companyId], references: [id])
+  client            Client?         @relation(fields: [clientId], references: [id])
+  companyConfirm    Boolean?        @default(false)
+  deliveryConfirm   Boolean?        @default(false)
+  paid              Boolean?        @default(false)
+  processed         Boolean?        @default(false)
+  deleted           Boolean?        @default(false)
+  timeline          OrderTimeline[]
+  // --- OTHER ---------------------------------------------------------------------//
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+
+model OrderTimeline {
+  id          Int          @id @default(autoincrement())
+  orderId     Int
+  order       Order        @relation(fields: [orderId], references: [id])
+  status      OrderStatus
+  note        String?
+  changedById Int?         // optional: who changed the status
+  changedBy   User?        @relation(fields: [changedById], references: [id])
+  createdAt   DateTime     @default(now())
+}
