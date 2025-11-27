@@ -97,16 +97,26 @@ export class OrdersService {
       from?: string;
       to?: string;
       search?: string;
+      proccessed?: string;
     },
     page = 1,
     size = 10
   ) {
-    const { status, deliveryId, clientId, companyId, from, to, search } =
-      filters;
+    const {
+      status,
+      deliveryId,
+      clientId,
+      companyId,
+      from,
+      to,
+      search,
+      proccessed,
+    } = filters;
 
     const where: Prisma.OrderWhereInput = {
       deleted: false,
       ...(status ? { status } : {}),
+      ...(proccessed ? { processed: false } : {}),
       ...(deliveryId === -1
         ? { deliveryId: null }
         : deliveryId
