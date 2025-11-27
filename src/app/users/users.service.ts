@@ -123,7 +123,7 @@ export class UsersService {
       select: userSelect,
     });
 
-    return { user };
+    return { user: userSelectReform(user) };
   }
 
   async getAllUser(filters: {
@@ -362,6 +362,7 @@ export class UsersService {
       companies: updates,
     };
   }
+
   async updateUser(id: number, data: UpdateUserDto) {
     if (data.phone) {
       const existing = await this.prisma.user.findUnique({
