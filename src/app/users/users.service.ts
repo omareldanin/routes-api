@@ -284,6 +284,8 @@ export class UsersService {
             data: {
               worksFroms: data.worksFroms || undefined,
               worksTo: data.worksTo || undefined,
+              latitude: data.latitude || undefined,
+              longitudes: data.longitudes || undefined,
               online:
                 data.online === "true"
                   ? true
