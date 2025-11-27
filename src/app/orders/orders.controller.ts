@@ -77,6 +77,11 @@ export class OrdersController {
     if (loggedInUser.role === "COMPANY_ADMIN") {
       companyId = loggedInUser.id + "";
     }
+
+    if (loggedInUser.role === "DELIVERY") {
+      deliveryId = loggedInUser.id + "";
+    }
+
     return this.ordersService.findAll(
       {
         status,
