@@ -71,6 +71,7 @@ export class OrdersService {
             select: {
               company: {
                 select: {
+                  id: true,
                   deliveryPrecent: true,
                 },
               },
@@ -78,6 +79,7 @@ export class OrdersService {
           },
         },
       });
+      companyId = user.delivery.company.id;
       company = user.delivery.company;
     }
 
