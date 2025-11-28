@@ -69,6 +69,7 @@ export class ClientsService {
     if (clientIds.length === 0) {
       return { data: [], pagination: { page, size, count: 0, totalPages: 0 } };
     }
+    console.log("sss", data);
 
     const orderStats = await this.prisma.order.groupBy({
       by: ["clientId"],
