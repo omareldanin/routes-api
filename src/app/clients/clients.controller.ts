@@ -66,14 +66,18 @@ export class ClientsController {
           id: loggedInUser.id,
         },
         select: {
-          company: {
+          delivery: {
             select: {
-              id: true,
+              company: {
+                select: {
+                  id: true,
+                },
+              },
             },
           },
         },
       });
-      companyId = user.company.id;
+      companyId = user.delivery.company.id;
     }
 
     return this.clientsService.findAll(
