@@ -1,4 +1,10 @@
-import { IsNumber, IsOptional, IsString, IsEnum } from "class-validator";
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsBoolean,
+} from "class-validator";
 import { OrderStatus } from "@prisma/client";
 
 export class CreateOrderDto {
@@ -46,6 +52,10 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  companyConfirm?: boolean;
 
   @IsOptional()
   @IsString()
