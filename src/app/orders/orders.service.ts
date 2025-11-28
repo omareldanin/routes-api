@@ -59,13 +59,16 @@ export class OrdersService {
     if (!company) {
       throw new NotFoundException("Company not found");
     }
+
     const orders = await this.prisma.$transaction(
       dtos.map((dto) =>
         this.prisma.order.create({
           data: {
             ...dto,
             companyId,
-            deliveryFee: (dto.shipping * company.deliveryPrecent) / 100,
+            deliveryFee: dto.shipping
+              ? (dto.shipping * company.deliveryPrecent) / 100
+              : 0,
           },
         })
       )

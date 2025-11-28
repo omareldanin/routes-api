@@ -21,6 +21,10 @@ export class CreateOrderDto {
   notes?: string;
 
   @IsOptional()
+  @IsBoolean()
+  companyConfirm?: boolean;
+
+  @IsOptional()
   @IsString()
   to?: string;
 
@@ -40,6 +44,7 @@ export class CreateOrderDto {
   @IsNumber()
   clientId?: number;
 }
+
 export class UpdateOrderDto {
   @IsOptional()
   @IsNumber()
@@ -60,6 +65,10 @@ export class UpdateOrderDto {
   @IsOptional()
   @IsString()
   to?: string;
+
+  @IsOptional()
+  @IsString()
+  from?: string;
 
   @IsOptional()
   @IsEnum(OrderStatus)

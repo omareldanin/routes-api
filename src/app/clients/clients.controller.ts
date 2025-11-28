@@ -17,6 +17,7 @@ import { UserRole } from "@prisma/client";
 import { JwtAuthGuard } from "src/middlewares/jwt-auth.guard";
 import { CreateClientDto, UpdateClientDto } from "./client.dto";
 import { NoFilesInterceptor } from "@nestjs/platform-express";
+import { PrismaService } from "src/prisma/prisma.service";
 
 export interface LoggedInUserType {
   id: number;
@@ -30,7 +31,10 @@ export interface LoggedInUserType {
 
 @Controller("clients")
 export class ClientsController {
-  constructor(private readonly clientsService: ClientsService) {}
+  constructor(
+    private readonly clientsService: ClientsService,
+    private prisma: PrismaService
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(NoFilesInterceptor())
@@ -51,9 +55,30 @@ export class ClientsController {
     @Query("size") size = "10"
   ) {
     const loggedInUser = req.user as LoggedInUserType;
+    let companyId: number | undefined = undefined;
+
+    if (loggedInUser.role === "COMPANY_ADMIN") {
+      companyId = loggedInUser.id;
+    }
+    if (loggedInUser.role === "DELIVERY") {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id: loggedInUser.id,
+        },
+        select: {
+          company: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+      companyId = user.company.id;
+    }
+
     return this.clientsService.findAll(
       { code, name, phone },
-      loggedInUser.id,
+      companyId,
       parseInt(page),
       parseInt(size)
     );
