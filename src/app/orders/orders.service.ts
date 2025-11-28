@@ -188,6 +188,8 @@ export class OrdersService {
           status: true,
           createdAt: true,
           processed: true,
+          companyConfirm: true,
+          deliveryConfirm: true,
           timeline: {
             select: {
               id: true,
