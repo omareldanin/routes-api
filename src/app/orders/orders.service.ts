@@ -151,7 +151,7 @@ export class OrdersService {
 
     const skip = (page - 1) * size;
 
-    const notReciveedCount = this.prisma.order.count({
+    const notReciveedCount = await this.prisma.order.count({
       where: {
         status: { in: ["ACCEPTED"] },
         ...(deliveryId ? { deliveryId } : {}),
