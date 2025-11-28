@@ -70,6 +70,7 @@ export class OrdersController {
     @Query("to") to?: string,
     @Query("search") search?: string,
     @Query("proccessed") proccessed?: string,
+    @Query("notComplete") notComplete?: string,
     @Query("page") page = "1",
     @Query("size") size = "10"
   ) {
@@ -90,6 +91,7 @@ export class OrdersController {
         clientId: clientId ? Number(clientId) : undefined,
         companyId: companyId ? Number(companyId) : undefined,
         proccessed,
+        notComplete,
         from,
         to,
         search,

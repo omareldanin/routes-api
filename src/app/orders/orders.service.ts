@@ -98,6 +98,7 @@ export class OrdersService {
       to?: string;
       search?: string;
       proccessed?: string;
+      notComplete?: string;
     },
     page = 1,
     size = 10
@@ -111,11 +112,16 @@ export class OrdersService {
       to,
       search,
       proccessed,
+      notComplete,
     } = filters;
 
     const where: Prisma.OrderWhereInput = {
       deleted: false,
-      ...(status ? { status } : {}),
+      ...(notComplete
+        ? { status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND"] } }
+        : status
+          ? { status }
+          : {}),
       ...(proccessed ? { processed: false } : {}),
       ...(deliveryId === -1
         ? { deliveryId: null }
@@ -144,6 +150,15 @@ export class OrdersService {
     };
 
     const skip = (page - 1) * size;
+
+    const notReciveedCount = this.prisma.order.count({
+      where: {
+        status: { in: ["ACCEPTED"] },
+        ...(deliveryId ? { deliveryId } : {}),
+        ...(companyId ? { companyId } : {}),
+        deleted: false,
+      },
+    });
 
     const totalnPaid = await this.prisma.order.aggregate({
       _count: { id: true },
@@ -205,6 +220,7 @@ export class OrdersService {
 
     return {
       data,
+      notReciveedCount: notReciveedCount,
       notPaid: {
         count: totalnPaid._count.id || 0,
         total: totalnPaid._sum.total || 0,
