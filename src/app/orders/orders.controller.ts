@@ -53,6 +53,9 @@ export class OrdersController {
     if (Array.isArray(dto)) {
       return this.ordersService.createMany(dto, companyId);
     } else {
+      if (loggedInUser.role === "DELIVERY") {
+        dto.status = "RECEIVED";
+      }
       return this.ordersService.createMany([dto], companyId);
     }
   }
