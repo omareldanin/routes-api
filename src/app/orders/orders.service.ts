@@ -8,6 +8,7 @@ import { PrismaService } from "src/prisma/prisma.service";
 import { CreateOrderDto, UpdateOrderDto } from "./order.dto";
 import { startOfMonth, subMonths } from "date-fns";
 import { count } from "console";
+import { LoggedInUserType } from "./orders.controller";
 
 @Injectable()
 export class OrdersService {
@@ -49,12 +50,36 @@ export class OrdersService {
     return monthly;
   }
   // ✅ Create one or multiple orders
-  async createMany(dtos: CreateOrderDto[], companyId: number) {
+  async createMany(
+    dtos: CreateOrderDto[],
+    companyId: number,
+    loggedInUser: LoggedInUserType
+  ) {
     // Create multiple orders
-    const company = await this.prisma.company.findUnique({
+    let company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { deliveryPrecent: true },
     });
+
+    if (loggedInUser.role === "DELIVERY") {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          id: loggedInUser.id,
+        },
+        select: {
+          delivery: {
+            select: {
+              company: {
+                select: {
+                  deliveryPrecent: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      company = user.delivery.company;
+    }
 
     if (!company) {
       throw new NotFoundException("Company not found");

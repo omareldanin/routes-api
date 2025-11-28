@@ -51,12 +51,12 @@ export class OrdersController {
 
     // Handle both single and multiple orders
     if (Array.isArray(dto)) {
-      return this.ordersService.createMany(dto, companyId);
+      return this.ordersService.createMany(dto, companyId, loggedInUser);
     } else {
       if (loggedInUser.role === "DELIVERY") {
         dto.status = "RECEIVED";
       }
-      return this.ordersService.createMany([dto], companyId);
+      return this.ordersService.createMany([dto], companyId, loggedInUser);
     }
   }
 
