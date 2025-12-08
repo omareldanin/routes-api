@@ -238,6 +238,7 @@ export class OrdersController {
     @Query("deliveryId") deliveryId?: string
   ) {
     const loggedInUser = req.user as LoggedInUserType;
+    console.log(vendorId);
 
     return this.ordersService.getOrderStatistics(
       loggedInUser.role === "COMPANY_ADMIN"
@@ -269,6 +270,9 @@ export class OrdersController {
     @Req() req
   ) {
     const loggedInUser = req.user as LoggedInUserType;
+    if (loggedInUser.role === "DELIVERY") {
+      dto.deliveryId = +loggedInUser.id;
+    }
     return this.ordersService.update(id, dto, loggedInUser.id);
   }
 

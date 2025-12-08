@@ -51,6 +51,7 @@ export const userSelectReform = (
     phone: user.phone,
     avatar: user.avatar,
     role: user.role,
+    createdAt: user.createdAt,
     permissions: user.admin?.permissions,
     address: user.company?.address,
     supscriptionEndDate: user.company?.supscriptionEndDate,
@@ -61,5 +62,7 @@ export const userSelectReform = (
     latitude: user.delivery?.latitude,
     longitudes: user.delivery?.longitudes,
     online: user.delivery?.online,
+    worksFroms: user.delivery?.worksFroms,
+    worksTo: user.delivery?.worksTo,
   };
 };

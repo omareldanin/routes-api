@@ -168,7 +168,7 @@ export class UsersService {
       count: total,
       page,
       totalPages: Math.ceil(total / pageSize),
-      results: results,
+      results: results.map((user) => userSelectReform(user)),
     };
   }
 
