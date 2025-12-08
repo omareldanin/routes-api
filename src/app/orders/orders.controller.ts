@@ -207,6 +207,7 @@ export class OrdersController {
     await workbook.xlsx.write(res);
     res.end();
   }
+
   @UseGuards(JwtAuthGuard)
   @Get("/deliveries-with-last-orders")
   async getAllDeliveriesWithLastOrders(

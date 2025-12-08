@@ -21,6 +21,7 @@ export class AuthService {
     let user = await this.usersService.findOne({
       phone: phone,
     });
+    console.log(user);
 
     if (!user) {
       throw new UnauthorizedException("خطأ في البيانات , اعد المحاوله");
@@ -31,6 +32,8 @@ export class AuthService {
         user.password
       )
     ) {
+      console.log(user);
+
       throw new UnauthorizedException("خطأ في البيانات , اعد المحاوله");
     }
 
