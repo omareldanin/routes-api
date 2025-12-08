@@ -22,58 +22,35 @@ export class NotificationService {
     topic?: NotificationTopic | undefined;
     userId?: number | undefined;
   }) {
-    let tokens: string[] = [];
-    let ids: number[] = [];
+    const user = await this.prisma.user.findUnique({
+      where: { id: +data.userId },
+      select: { id: true, fcm: true },
+    });
 
-    if (data.topic === "ALL") {
-      const users = await this.prisma.user.findMany({
-        where: { deleted: false, fcm: { not: null } },
-        select: { id: true, fcm: true },
-      });
-      tokens = users.map((u) => u.fcm);
-      ids = users.map((u) => u.id);
-    } else if (data.topic) {
-      const users = await this.prisma.user.findMany({
-        where: { deleted: false, fcm: { not: null }, role: data.topic },
-        select: { id: true, fcm: true },
-      });
-      tokens = users.map((u) => u.fcm);
-      ids = users.map((u) => u.id);
-    } else if (data.userId) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: +data.userId },
-        select: { id: true, fcm: true },
-      });
-      if (user) {
-        ids = [user.id];
-        tokens = [user.fcm || ""];
-      }
-    }
-
-    if (tokens.length > 0) {
-      const response = await admin.messaging().sendEachForMulticast({
-        notification: { title: data.title, body: data.content },
-        tokens,
-      });
-
-      // log كل النتائج
-      response.responses.forEach((res, idx) => {
-        if (!res.success) {
-          console.warn(
-            `❌ Failed to send notification to token ${tokens[idx]}:`,
-            res.error?.message
-          );
-        }
+    if (user && user.fcm) {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Accept-Encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          to: user.fcm,
+          sound: "default",
+          title: data.title,
+          body: data.content,
+        }),
       });
     }
 
     // save notifications في DB حتى لو حصل errors
-    const results = await this.prisma.notification.createMany({
-      data: ids.map((id) => ({
+    const results = await this.prisma.notification.create({
+      data: {
         title: data.title,
         content: data.content,
-        userId: id,
-      })),
+        userId: user.id,
+      },
     });
 
     return { message: "success", results };
@@ -86,6 +63,7 @@ export class NotificationService {
     role: UserRole;
   }): Promise<{
     count: number;
+    unSeenCount: number;
     page: number;
     totalPages: number;
     results: Notification[];
@@ -93,7 +71,7 @@ export class NotificationService {
     const page = +data.page || 1;
     const pageSize = +data.size || 10;
 
-    const [results, total] = await Promise.all([
+    const [results, total, unseen] = await Promise.all([
       this.prisma.notification.findMany({
         where: {
           userId: data.userId,
@@ -109,10 +87,17 @@ export class NotificationService {
           userId: data.userId,
         },
       }),
+      this.prisma.notification.count({
+        where: {
+          userId: data.userId,
+          seen: false,
+        },
+      }),
     ]);
 
     return {
       count: total,
+      unSeenCount: unseen,
       page,
       totalPages: Math.ceil(total / pageSize),
       results: results,

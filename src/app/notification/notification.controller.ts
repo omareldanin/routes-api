@@ -9,19 +9,19 @@ import {
   Req,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { NotificationService } from './notification.service';
-import { NoFilesInterceptor } from '@nestjs/platform-express';
-import { JwtAuthGuard } from 'src/middlewares/jwt-auth.guard';
-import { NotificationTopic } from '@prisma/client';
-import { LoggedInUserType } from '../auth/auth.dto';
+} from "@nestjs/common";
+import { NotificationService } from "./notification.service";
+import { NoFilesInterceptor } from "@nestjs/platform-express";
+import { JwtAuthGuard } from "src/middlewares/jwt-auth.guard";
+import { NotificationTopic } from "@prisma/client";
+import { LoggedInUserType } from "../auth/auth.dto";
 
-@Controller('notification')
+@Controller("notification")
 export class NotificationController {
   constructor(private notificationService: NotificationService) {}
   @UseInterceptors(NoFilesInterceptor())
   @UseGuards(JwtAuthGuard)
-  @Post('/create')
+  @Post("/create")
   sendNotification(
     @Body()
     data: {
@@ -29,18 +29,17 @@ export class NotificationController {
       title: string;
       content: string;
       topic: NotificationTopic;
-    },
+    }
   ) {
     return this.notificationService.sendNotification(data);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('/getUserNotifications')
+  @Get("/getUserNotifications")
   getUserNotifications(
-    @Query('page') page: number,
-    @Query('size') size: number,
-    @Query('topic') topic: NotificationTopic,
-    @Req() req,
+    @Query("page") page: number,
+    @Query("size") size: number,
+    @Req() req
   ) {
     const loggedInUser = req.user as LoggedInUserType;
 
@@ -52,7 +51,7 @@ export class NotificationController {
     });
   }
   @UseGuards(JwtAuthGuard)
-  @Patch('/updateUserSeen')
+  @Patch("/updateUserSeen")
   updateUserSeen(@Req() req) {
     const loggedInUser = req.user as LoggedInUserType;
 
@@ -61,7 +60,7 @@ export class NotificationController {
     });
   }
   @UseGuards(JwtAuthGuard)
-  @Patch('/edit/:id')
+  @Patch("/edit/:id")
   updateNotification(@Param() params: any) {
     return this.notificationService.updateNotificationSeen({
       id: +params.id,

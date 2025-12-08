@@ -7,12 +7,15 @@ import { Prisma, OrderStatus } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateOrderDto, UpdateOrderDto } from "./order.dto";
 import { startOfMonth, subMonths } from "date-fns";
-import { count } from "console";
 import { LoggedInUserType } from "./orders.controller";
+import { NotificationService } from "../notification/notification.service";
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService
+  ) {}
   async getMonthlySales() {
     // تاريخ أول يوم من الشهر الحالي ناقص 11 شهر (يعني آخر 12 شهر)
     const startDate = startOfMonth(subMonths(new Date(), 11));
@@ -113,10 +116,31 @@ export class OrdersService {
         })
       )
     );
-
+    if (loggedInUser.role !== "DELIVERY") {
+      const deliveries = await this.prisma.delivery.findMany({
+        where: {
+          companyId,
+          online: true,
+          id: orders[0].deliveryId ? orders[0].deliveryId : undefined,
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+      deliveries.forEach(async (delivery) => {
+        await this.notificationService.sendNotification({
+          title: "طلب جديد",
+          content: `هناك طلب جديد من ${orders[0].from}`,
+          userId: delivery.user.id,
+        });
+      });
+    }
     return orders;
   }
-
   // ✅ Get all with filters and pagination
   async findAll(
     filters: {
@@ -456,7 +480,6 @@ export class OrdersService {
 
     return { message: `${updated.count} orders processed.` };
   }
-
   // ✅ Get one order + timeline
   async findOne(id: number) {
     const order = await this.prisma.order.findUnique({
@@ -475,7 +498,6 @@ export class OrdersService {
     if (!order) throw new NotFoundException("Order not found");
     return order;
   }
-
   // ✅ Update order + record timeline if status changes
   async update(id: number, dto: UpdateOrderDto, userId: number) {
     const oldOrder = await this.prisma.order.findUnique({
@@ -547,7 +569,6 @@ export class OrdersService {
 
     return updated;
   }
-
   // ✅ Soft delete
   async remove(id: number) {
     const exists = await this.prisma.order.findUnique({ where: { id } });
@@ -560,7 +581,6 @@ export class OrdersService {
 
     return { message: "Order deleted successfully" };
   }
-
   async removeMany(ids: number[]) {
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       throw new BadRequestException("ids must be a non-empty array");
