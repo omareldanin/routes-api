@@ -257,19 +257,18 @@ export class UsersService {
       });
     }
 
-    const user = await this.prisma.user.update({
-      where: {
-        id: id,
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        company: { select: { id: true } },
+        delivery: { select: { id: true } },
       },
-      data: {
-        name: data.name,
-        phone: data.phone,
-        avatar: data.avatar,
-        password: data.password ? hashedPassword : undefined,
-        fcm: data.fcm,
-        company: {
-          update: {
-            data: {
+    });
+
+    const companyUpdate = existingUser.company
+      ? {
+          company: {
+            update: {
               address: data.address || undefined,
               latitude: data.latitude || undefined,
               longitudes: data.longitudes || undefined,
@@ -278,10 +277,13 @@ export class UsersService {
               deliveryPrecent: data.deliveryPrecent,
             },
           },
-        },
-        delivery: {
-          update: {
-            data: {
+        }
+      : {};
+
+    const deliveryUpdate = existingUser.delivery
+      ? {
+          delivery: {
+            update: {
               worksFroms: data.worksFroms || undefined,
               worksTo: data.worksTo || undefined,
               latitude: data.latitude || undefined,
@@ -294,7 +296,19 @@ export class UsersService {
                     : undefined,
             },
           },
-        },
+        }
+      : {};
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        name: data.name,
+        phone: data.phone,
+        avatar: data.avatar,
+        password: data.password ? hashedPassword : undefined,
+        fcm: data.fcm,
+        ...companyUpdate,
+        ...deliveryUpdate,
       },
     });
 
