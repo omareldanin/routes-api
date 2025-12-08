@@ -83,7 +83,7 @@ export class OrdersController {
       companyId = loggedInUser.id + "";
     }
 
-    if (loggedInUser.role === "DELIVERY") {
+    if (loggedInUser.role === "DELIVERY" && status !== "STARTED") {
       deliveryId = loggedInUser.id + "";
     }
 
