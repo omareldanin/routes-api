@@ -296,6 +296,63 @@ export class OrdersService {
       },
     };
   }
+  async findAllByClient(filters, page = 1, size = 10) {
+    const { status, deliveryId, companyId, proccessed, notComplete } = filters;
+
+    const where: Prisma.OrderWhereInput = {
+      deleted: false,
+      ...(notComplete
+        ? { status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND"] } }
+        : status
+          ? { status }
+          : {}),
+      ...(proccessed ? { processed: false } : {}),
+      ...(deliveryId === -1
+        ? { deliveryId: null }
+        : deliveryId
+          ? { deliveryId }
+          : {}),
+      ...(companyId ? { companyId } : {}),
+    };
+
+    // 1️⃣ Group by clientId
+    const groups = await this.prisma.order.groupBy({
+      by: ["clientId"],
+      where,
+      _count: { id: true },
+    });
+
+    const clientIds = groups.map((g) => g.clientId);
+
+    // 2️⃣ Fetch client info
+    const clients = await this.prisma.client.findMany({
+      where: { id: { in: clientIds } },
+      select: { id: true, name: true, phone: true, address: true },
+    });
+
+    // 3️⃣ Merge client info with count
+    const result = groups.map((g) => ({
+      clientId: g.clientId,
+      ordersCount: g._count.id,
+      ...clients.find((c) => c.id === g.clientId),
+    }));
+
+    // 4️⃣ Total count for pagination
+    const total = await this.prisma.order.groupBy({
+      by: ["clientId"],
+      where,
+    });
+
+    return {
+      data: result,
+      pagination: {
+        page,
+        size,
+        count: total.length,
+        totalPages: Math.ceil(total.length / size),
+      },
+    };
+  }
 
   async getAllForExport(filters: {
     status?: OrderStatus;

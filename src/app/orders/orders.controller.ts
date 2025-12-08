@@ -105,6 +105,38 @@ export class OrdersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get("/getAllByClient")
+  async findAllByClient(
+    @Req() req,
+    @Query("status") status?: OrderStatus,
+    @Query("deliveryId") deliveryId?: string,
+    @Query("clientId") clientId?: string,
+    @Query("companyId") companyId?: string,
+    @Query("search") search?: string,
+    @Query("proccessed") proccessed?: string,
+    @Query("notComplete") notComplete?: string
+  ) {
+    const loggedInUser = req.user as LoggedInUserType;
+
+    if (loggedInUser.role === "COMPANY_ADMIN") {
+      companyId = loggedInUser.id + "";
+    }
+
+    if (loggedInUser.role === "DELIVERY" && status !== "STARTED") {
+      deliveryId = loggedInUser.id + "";
+    }
+
+    return this.ordersService.findAllByClient({
+      status,
+      deliveryId: deliveryId ? Number(deliveryId) : undefined,
+      clientId: clientId ? Number(clientId) : undefined,
+      companyId: companyId ? Number(companyId) : undefined,
+      proccessed,
+      notComplete,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post("/reset-delivery-count")
   async resetDeliveryCount(
     @Req() req,
