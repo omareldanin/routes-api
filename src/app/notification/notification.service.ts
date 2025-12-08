@@ -37,7 +37,7 @@ export class NotificationService {
         },
         body: JSON.stringify({
           to: user.fcm,
-          sound: "default",
+          sound: "new-order.wav",
           title: data.title,
           body: data.content,
         }),
