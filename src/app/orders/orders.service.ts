@@ -170,37 +170,47 @@ export class OrdersService {
     } = filters;
 
     const where: Prisma.OrderWhereInput = {
-      deleted: false,
-      ...(notComplete
-        ? { status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND"] } }
-        : status
-          ? { status }
-          : {}),
-      ...(proccessed ? { processed: false } : {}),
-      ...(deliveryId === -1
-        ? { deliveryId: null }
-        : deliveryId
-          ? { deliveryId }
-          : {}),
-      ...(clientId ? { clientId } : {}),
-      ...(companyId ? { companyId } : {}),
-      ...(from && to
-        ? {
-            createdAt: {
-              gte: new Date(from),
-              lte: to ? new Date(to) : new Date(),
-            },
-          }
-        : {}),
-      ...(search
-        ? {
-            OR: [
-              { notes: { contains: search, mode: "insensitive" } },
-              { to: { contains: search, mode: "insensitive" } },
-              { id: isNaN(Number(search)) ? undefined : Number(search) },
-            ],
-          }
-        : {}),
+      AND: [
+        { deleted: false },
+        {
+          ...(notComplete
+            ? { status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND"] } }
+            : status
+              ? { status }
+              : {}),
+        },
+        { ...(proccessed ? { processed: false } : {}) },
+        {
+          ...(deliveryId === -1
+            ? { deliveryId: null }
+            : deliveryId
+              ? { deliveryId }
+              : {}),
+        },
+        { ...(clientId ? { clientId } : {}) },
+        { ...(companyId ? { companyId } : {}) },
+        {
+          ...(from && to
+            ? {
+                createdAt: {
+                  gte: new Date(from),
+                  lte: to ? new Date(to) : new Date(),
+                },
+              }
+            : {}),
+        },
+        {
+          ...(search
+            ? {
+                OR: [
+                  { notes: { contains: search, mode: "insensitive" } },
+                  { to: { contains: search, mode: "insensitive" } },
+                  { id: isNaN(Number(search)) ? undefined : Number(search) },
+                ],
+              }
+            : {}),
+        },
+      ],
     };
 
     const skip = (page - 1) * size;
@@ -337,20 +347,8 @@ export class OrdersService {
       ...clients.find((c) => c.id === g.clientId),
     }));
 
-    // 4️⃣ Total count for pagination
-    const total = await this.prisma.order.groupBy({
-      by: ["clientId"],
-      where,
-    });
-
     return {
       data: result,
-      pagination: {
-        page,
-        size,
-        count: total.length,
-        totalPages: Math.ceil(total.length / size),
-      },
     };
   }
 

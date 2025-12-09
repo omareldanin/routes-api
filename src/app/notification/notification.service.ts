@@ -42,6 +42,7 @@ export class NotificationService {
           body: data.content,
         }),
       });
+      console.log("response", response);
     }
 
     // save notifications في DB حتى لو حصل errors

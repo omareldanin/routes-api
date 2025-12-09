@@ -112,7 +112,6 @@ export class OrdersController {
     @Query("deliveryId") deliveryId?: string,
     @Query("clientId") clientId?: string,
     @Query("companyId") companyId?: string,
-    @Query("search") search?: string,
     @Query("proccessed") proccessed?: string,
     @Query("notComplete") notComplete?: string
   ) {
