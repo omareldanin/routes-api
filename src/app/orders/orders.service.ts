@@ -174,7 +174,9 @@ export class OrdersService {
         { deleted: false },
         {
           ...(notComplete
-            ? { status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND"] } }
+            ? {
+                status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND", "STARTED"] },
+              }
             : status
               ? { status }
               : {}),

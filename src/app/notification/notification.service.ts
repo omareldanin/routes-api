@@ -37,12 +37,15 @@ export class NotificationService {
         },
         body: JSON.stringify({
           to: user.fcm,
-          sound: "new-order.wav",
+          sound: "sound.wav",
           title: data.title,
           body: data.content,
+          channelId: "orders",
+          priority: "high",
         }),
       });
-      console.log("response", response);
+      const result = await response.json();
+      console.log("EXPO PUSH RESULT:", result);
     }
 
     // save notifications في DB حتى لو حصل errors
