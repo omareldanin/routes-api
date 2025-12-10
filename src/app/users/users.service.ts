@@ -41,7 +41,9 @@ export class UsersService {
       const startDate = dto.supscriptionStartDate
         ? new Date(dto.supscriptionStartDate)
         : new Date();
-      const endDate = addDays(startDate, 30);
+      const endDate = dto.supscriptionEndDate
+        ? new Date(dto.supscriptionEndDate)
+        : addDays(startDate, 30);
 
       await this.prisma.company.create({
         data: {
@@ -245,14 +247,15 @@ export class UsersService {
 
     if (data.supscriptionStartDate) {
       const startDate = data.supscriptionStartDate;
-
-      const newEndDate = addDays(startDate, 30);
+      const endDate = data.supscriptionEndDate
+        ? new Date(data.supscriptionEndDate)
+        : addDays(startDate, 30);
 
       await this.prisma.company.update({
         where: { id: id },
         data: {
           supscriptionStartDate: startDate,
-          supscriptionEndDate: newEndDate,
+          supscriptionEndDate: endDate,
         },
       });
     }

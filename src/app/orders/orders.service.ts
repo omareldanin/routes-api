@@ -16,13 +16,14 @@ export class OrdersService {
     private prisma: PrismaService,
     private notificationService: NotificationService
   ) {}
-  async getMonthlySales() {
+  async getMonthlySales(companyId: number) {
     // تاريخ أول يوم من الشهر الحالي ناقص 11 شهر (يعني آخر 12 شهر)
     const startDate = startOfMonth(subMonths(new Date(), 11));
 
     const result = await this.prisma.order.groupBy({
       by: ["createdAt"],
       where: {
+        companyId,
         createdAt: {
           gte: startDate,
         },
@@ -62,6 +63,14 @@ export class OrdersService {
     let company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { deliveryPrecent: true },
+    });
+    const client = await this.prisma.client.findUnique({
+      where: {
+        id: +dtos[0].clientId,
+      },
+      select: {
+        name: true,
+      },
     });
 
     if (loggedInUser.role === "DELIVERY") {
@@ -134,7 +143,7 @@ export class OrdersService {
       deliveries.forEach(async (delivery) => {
         await this.notificationService.sendNotification({
           title: "طلب جديد",
-          content: `هناك طلب جديد من ${orders[0].from}`,
+          content: ` هناك طلب جديد من العميل ${client.name} `,
           userId: delivery.user.id,
         });
       });
@@ -308,7 +317,17 @@ export class OrdersService {
       },
     };
   }
-  async findAllByClient(filters, page = 1, size = 10) {
+  async findAllByClient(filters: {
+    status?: OrderStatus;
+    deliveryId?: number;
+    clientId?: number;
+    companyId?: number;
+    from?: string;
+    to?: string;
+    search?: string;
+    proccessed?: string;
+    notComplete?: string;
+  }) {
     const { status, deliveryId, companyId, proccessed, notComplete } = filters;
 
     const where: Prisma.OrderWhereInput = {
@@ -556,7 +575,11 @@ export class OrdersService {
     return order;
   }
   // ✅ Update order + record timeline if status changes
-  async update(id: number, dto: UpdateOrderDto, userId: number) {
+  async update(
+    id: number,
+    dto: UpdateOrderDto,
+    loggedInUser: LoggedInUserType
+  ) {
     const oldOrder = await this.prisma.order.findUnique({
       where: { id },
       include: { timeline: true },
@@ -583,7 +606,7 @@ export class OrdersService {
           data: {
             orderId: id,
             status: "ACCEPTED",
-            changedById: userId,
+            changedById: loggedInUser.id,
             note: `Status changed from ${oldOrder.status} → ${dto.status}`,
           },
         });
@@ -596,7 +619,7 @@ export class OrdersService {
           data: {
             orderId: id,
             status: "ACCEPTED",
-            changedById: userId,
+            changedById: loggedInUser.id,
             note: `Status changed from ${oldOrder.status} → ${dto.status}`,
           },
         });
@@ -609,7 +632,7 @@ export class OrdersService {
           data: {
             orderId: id,
             status: "RECEIVED",
-            changedById: userId,
+            changedById: loggedInUser.id,
             note: `Status changed from ${oldOrder.status} → ${dto.status}`,
           },
         });
@@ -618,7 +641,7 @@ export class OrdersService {
         data: {
           orderId: id,
           status: dto.status,
-          changedById: userId,
+          changedById: loggedInUser.id,
           note: `Status changed from ${oldOrder.status} → ${dto.status}`,
         },
       });
@@ -685,7 +708,10 @@ export class OrdersService {
 
     const activeDeliveries = await this.prisma.delivery.aggregate({
       _count: { id: true },
-      where: { user: { deleted: false } },
+      where: {
+        companyId: vendorId ? +vendorId : undefined,
+        user: { deleted: false },
+      },
     });
 
     const totalPaid = await this.prisma.order.aggregate({
@@ -721,7 +747,7 @@ export class OrdersService {
       statusCounts[s.status] = s._count.status;
     });
 
-    const monthlySales = await this.getMonthlySales();
+    const monthlySales = await this.getMonthlySales(vendorId);
 
     return {
       totalOrders: result._count?.id || 0,

@@ -53,6 +53,10 @@ export class CreateUserDto {
   supscriptionStartDate?: string;
 
   @IsOptional()
+  @IsDateString()
+  supscriptionEndDate?: string;
+
+  @IsOptional()
   @IsString()
   worksFroms?: string;
 
@@ -105,6 +109,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsDateString()
   supscriptionStartDate?: string;
+
+  @IsOptional()
+  @IsDateString()
+  supscriptionEndDate?: string;
 
   @IsOptional()
   @IsInt()
