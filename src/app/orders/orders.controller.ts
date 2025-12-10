@@ -125,14 +125,17 @@ export class OrdersController {
       deliveryId = loggedInUser.id + "";
     }
 
-    return this.ordersService.findAllByClient({
-      status,
-      deliveryId: deliveryId ? Number(deliveryId) : undefined,
-      clientId: clientId ? Number(clientId) : undefined,
-      companyId: companyId ? Number(companyId) : undefined,
-      proccessed,
-      notComplete,
-    });
+    return this.ordersService.findAllByClient(
+      {
+        status,
+        deliveryId: deliveryId ? Number(deliveryId) : undefined,
+        clientId: clientId ? Number(clientId) : undefined,
+        companyId: companyId ? Number(companyId) : undefined,
+        proccessed,
+        notComplete,
+      },
+      loggedInUser
+    );
   }
 
   @UseGuards(JwtAuthGuard)

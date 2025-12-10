@@ -317,18 +317,34 @@ export class OrdersService {
       },
     };
   }
-  async findAllByClient(filters: {
-    status?: OrderStatus;
-    deliveryId?: number;
-    clientId?: number;
-    companyId?: number;
-    from?: string;
-    to?: string;
-    search?: string;
-    proccessed?: string;
-    notComplete?: string;
-  }) {
-    const { status, deliveryId, companyId, proccessed, notComplete } = filters;
+  async findAllByClient(
+    filters: {
+      status?: OrderStatus;
+      deliveryId?: number;
+      clientId?: number;
+      companyId?: number;
+      from?: string;
+      to?: string;
+      search?: string;
+      proccessed?: string;
+      notComplete?: string;
+    },
+    loggedInUser: LoggedInUserType
+  ) {
+    let { status, deliveryId, companyId, proccessed, notComplete } = filters;
+
+    const delivery = await this.prisma.delivery.findUnique({
+      where: {
+        id: loggedInUser.id,
+      },
+      select: {
+        companyId: true,
+      },
+    });
+
+    if (loggedInUser.role === "DELIVERY") {
+      companyId = delivery.companyId;
+    }
 
     const where: Prisma.OrderWhereInput = {
       deleted: false,
@@ -353,24 +369,30 @@ export class OrdersService {
       _count: { id: true },
     });
 
-    const clientIds = groups.map((g) => g.clientId);
+    // 2️⃣ Remove null clientIds → fixes Prisma error
+    const clientIds = groups
+      .map((g) => g.clientId)
+      .filter((id): id is number => id !== null);
 
-    // 2️⃣ Fetch client info
+    // 3️⃣ Fetch only valid clients
     const clients = await this.prisma.client.findMany({
       where: { id: { in: clientIds } },
       select: { id: true, name: true, phone: true, address: true },
     });
 
-    // 3️⃣ Merge client info with count
-    const result = groups.map((g) => ({
-      clientId: g.clientId,
-      ordersCount: g._count.id,
-      ...clients.find((c) => c.id === g.clientId),
-    }));
+    // 4️⃣ Merge client info with count
+    let result = groups
+      .filter((g) => g.clientId !== null)
+      .map((g) => ({
+        clientId: g.clientId!,
+        ordersCount: g._count.id,
+        ...clients.find((c) => c.id === g.clientId),
+      }));
 
-    return {
-      data: result,
-    };
+    // 5️⃣ Sort by most orders
+    result.sort((a, b) => b.ordersCount - a.ordersCount);
+
+    return { data: result };
   }
 
   async getAllForExport(filters: {
