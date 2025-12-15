@@ -627,8 +627,24 @@ export class OrdersService {
 
     const updated = await this.prisma.order.update({
       where: { id },
-      data: { ...dto },
+      data: {
+        ...dto,
+        deliveryFee: dto.shipping
+          ? (dto.shipping * oldOrder.company.deliveryPrecent) / 100
+          : 0,
+      },
     });
+
+    if (dto.shipping) {
+      await this.prisma.order.update({
+        where: { id },
+        data: {
+          deliveryFee: dto.shipping
+            ? (dto.shipping * oldOrder.company.deliveryPrecent) / 100
+            : 0,
+        },
+      });
+    }
 
     if (dto.deliveryId && loggedInUser.role !== "DELIVERY") {
       const delivery = await this.prisma.delivery.findFirst({
@@ -702,17 +718,6 @@ export class OrdersService {
           status: dto.status,
           changedById: loggedInUser.id,
           note: `Status changed from ${oldOrder.status} → ${dto.status}`,
-        },
-      });
-    }
-
-    if (dto.shipping) {
-      await this.prisma.order.update({
-        where: { id },
-        data: {
-          deliveryFee: dto.shipping
-            ? (dto.shipping * oldOrder.company.deliveryPrecent) / 100
-            : 0,
         },
       });
     }
