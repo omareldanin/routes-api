@@ -619,6 +619,8 @@ export class OrdersService {
 
     if (!oldOrder) throw new NotFoundException("Order not found");
 
+    console.log(oldOrder);
+
     if (dto.status === "DELIVERED" && oldOrder.shipping === 0) {
       throw new NotFoundException("يجب إضافه حساب الشركه اولا");
     }

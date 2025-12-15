@@ -81,7 +81,6 @@ export class UsersController {
     if (file) {
       data.avatar = "uploads/" + file.filename; // or save full path if you want
     }
-    console.log(data);
 
     const user = await this.userService.updateProfile(loggedInUser.id, data);
     return {
