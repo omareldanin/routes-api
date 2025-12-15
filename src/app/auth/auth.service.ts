@@ -8,8 +8,6 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { env } from "src/config";
 
-const phonesOtp: { phone: string; otp: string }[] = [];
-
 @Injectable()
 export class AuthService {
   constructor(

@@ -53,7 +53,7 @@ export class OrdersService {
 
     return monthly;
   }
-  // ✅ Create one or multiple orders
+
   async createMany(
     dtos: CreateOrderDto[],
     companyId: number,
@@ -64,6 +64,7 @@ export class OrdersService {
       where: { id: companyId },
       select: { deliveryPrecent: true },
     });
+
     const client = await this.prisma.client.findUnique({
       where: {
         id: +dtos[0].clientId,
@@ -150,7 +151,7 @@ export class OrdersService {
     }
     return orders;
   }
-  // ✅ Get all with filters and pagination
+
   async findAll(
     filters: {
       status?: OrderStatus;
@@ -317,6 +318,7 @@ export class OrdersService {
       },
     };
   }
+
   async findAllByClient(
     filters: {
       status?: OrderStatus;
@@ -517,13 +519,21 @@ export class OrdersService {
             },
           },
         },
-        orderBy: {
-          delivery: {
-            orders: {
-              _count: "desc",
+        orderBy: [
+          {
+            delivery: {
+              online: "desc",
             },
           },
-        },
+
+          {
+            delivery: {
+              orders: {
+                _count: "desc",
+              },
+            },
+          },
+        ],
         skip: (page - 1) * +size,
         take: +size,
       }),
@@ -578,7 +588,7 @@ export class OrdersService {
 
     return { message: `${updated.count} orders processed.` };
   }
-  // ✅ Get one order + timeline
+
   async findOne(id: number) {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -596,7 +606,7 @@ export class OrdersService {
     if (!order) throw new NotFoundException("Order not found");
     return order;
   }
-  // ✅ Update order + record timeline if status changes
+
   async update(
     id: number,
     dto: UpdateOrderDto,
@@ -604,14 +614,39 @@ export class OrdersService {
   ) {
     const oldOrder = await this.prisma.order.findUnique({
       where: { id },
-      include: { timeline: true },
+      include: { timeline: true, company: true },
     });
+
     if (!oldOrder) throw new NotFoundException("Order not found");
+
+    if (dto.status === "DELIVERED" && oldOrder.shipping === 0) {
+      throw new NotFoundException("يجب إضافه حساب الشركه اولا");
+    }
 
     const updated = await this.prisma.order.update({
       where: { id },
-      data: dto,
+      data: { ...dto },
     });
+
+    if (dto.deliveryId && loggedInUser.role !== "DELIVERY") {
+      const delivery = await this.prisma.delivery.findFirst({
+        where: {
+          id: +dto.deliveryId,
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+      await this.notificationService.sendNotification({
+        title: "طلب جديد",
+        content: `هناك طلب جديد مرسل إليك برقم ${oldOrder.id}`,
+        userId: delivery.user.id,
+      });
+    }
 
     if (dto.status && dto.status !== oldOrder.status) {
       await this.prisma.orderTimeline.deleteMany({
@@ -669,9 +704,20 @@ export class OrdersService {
       });
     }
 
+    if (dto.shipping) {
+      await this.prisma.order.update({
+        where: { id },
+        data: {
+          deliveryFee: dto.shipping
+            ? (dto.shipping * oldOrder.company.deliveryPrecent) / 100
+            : 0,
+        },
+      });
+    }
+
     return updated;
   }
-  // ✅ Soft delete
+
   async remove(id: number) {
     const exists = await this.prisma.order.findUnique({ where: { id } });
     if (!exists) throw new NotFoundException("Order not found");
@@ -683,6 +729,7 @@ export class OrdersService {
 
     return { message: "Order deleted successfully" };
   }
+
   async removeMany(ids: number[]) {
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       throw new BadRequestException("ids must be a non-empty array");
