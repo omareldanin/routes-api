@@ -621,7 +621,11 @@ export class OrdersService {
 
     console.log(oldOrder);
 
-    if (dto.status === "DELIVERED" && oldOrder.shipping === 0) {
+    if (
+      dto.status === "DELIVERED" &&
+      oldOrder.shipping === 0 &&
+      !dto.shipping
+    ) {
       throw new NotFoundException("يجب إضافه حساب الشركه اولا");
     }
 
