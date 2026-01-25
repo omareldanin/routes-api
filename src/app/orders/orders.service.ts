@@ -14,7 +14,7 @@ import { NotificationService } from "../notification/notification.service";
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
   ) {}
   async getMonthlySales(companyId: number) {
     // تاريخ أول يوم من الشهر الحالي ناقص 11 شهر (يعني آخر 12 شهر)
@@ -48,7 +48,7 @@ export class OrdersService {
 
         return acc;
       },
-      {} as Record<string, { total: number; shipping: number }>
+      {} as Record<string, { total: number; shipping: number }>,
     );
 
     return monthly;
@@ -57,7 +57,7 @@ export class OrdersService {
   async createMany(
     dtos: CreateOrderDto[],
     companyId: number,
-    loggedInUser: LoggedInUserType
+    loggedInUser: LoggedInUserType,
   ) {
     // Create multiple orders
     let company = await this.prisma.company.findUnique({
@@ -110,8 +110,8 @@ export class OrdersService {
               ? (dto.shipping * company.deliveryPrecent) / 100
               : 0,
           },
-        })
-      )
+        }),
+      ),
     );
 
     // Create timeline records for all orders
@@ -123,8 +123,8 @@ export class OrdersService {
             status: order.status,
             note: "Order created",
           },
-        })
-      )
+        }),
+      ),
     );
     if (loggedInUser.role !== "DELIVERY") {
       const deliveries = await this.prisma.delivery.findMany({
@@ -165,7 +165,7 @@ export class OrdersService {
       notComplete?: string;
     },
     page = 1,
-    size = 10
+    size = 10,
   ) {
     const {
       status,
@@ -178,6 +178,12 @@ export class OrdersService {
       proccessed,
       notComplete,
     } = filters;
+
+    const startDate = new Date(from);
+    startDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(to);
+    endDate.setHours(23, 59, 59, 999);
 
     const where: Prisma.OrderWhereInput = {
       AND: [
@@ -205,8 +211,8 @@ export class OrdersService {
           ...(from && to
             ? {
                 createdAt: {
-                  gte: new Date(from),
-                  lte: to ? new Date(to) : new Date(),
+                  gte: startDate,
+                  lte: to ? endDate : new Date(),
                 },
               }
             : {}),
@@ -331,7 +337,7 @@ export class OrdersService {
       proccessed?: string;
       notComplete?: string;
     },
-    loggedInUser: LoggedInUserType
+    loggedInUser: LoggedInUserType,
   ) {
     let { status, deliveryId, companyId, proccessed, notComplete } = filters;
 
@@ -463,7 +469,7 @@ export class OrdersService {
       companyId?: number;
     },
     page = 1,
-    size = 10
+    size = 10,
   ) {
     const [results, total] = await Promise.all([
       this.prisma.user.findMany({
@@ -610,7 +616,7 @@ export class OrdersService {
   async update(
     id: number,
     dto: UpdateOrderDto,
-    loggedInUser: LoggedInUserType
+    loggedInUser: LoggedInUserType,
   ) {
     const oldOrder = await this.prisma.order.findUnique({
       where: { id },
@@ -619,14 +625,16 @@ export class OrdersService {
 
     if (!oldOrder) throw new NotFoundException("Order not found");
 
-    console.log(oldOrder);
-
     if (
       dto.status === "DELIVERED" &&
       oldOrder.shipping === 0 &&
       !dto.shipping
     ) {
       throw new NotFoundException("يجب إضافه حساب الشركه اولا");
+    }
+
+    if (oldOrder.status === "CANCELED" && dto.status) {
+      throw new NotFoundException("تم إلغاء الاوردر");
     }
 
     const updated = await this.prisma.order.update({
@@ -798,8 +806,10 @@ export class OrdersService {
       _count: { id: true },
       _sum: { total: true, shipping: true },
       where: {
-        companyId: vendorId ? +vendorId : undefined,
+        // company:{} vendorId ? +vendorId : undefined,
+        company: { id: vendorId ? +vendorId : undefined },
         deliveryId: deliveryId ? +deliveryId : undefined,
+        deleted: false,
       },
     });
 
@@ -814,13 +824,13 @@ export class OrdersService {
     });
 
     const statusCounts: Record<string, number> = Object.values(
-      OrderStatus
+      OrderStatus,
     ).reduce(
       (acc, status) => {
         acc[status] = 0;
         return acc;
       },
-      {} as Record<string, number>
+      {} as Record<string, number>,
     );
 
     statuses.forEach((s) => {

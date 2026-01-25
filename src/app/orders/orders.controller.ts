@@ -75,7 +75,7 @@ export class OrdersController {
     @Query("proccessed") proccessed?: string,
     @Query("notComplete") notComplete?: string,
     @Query("page") page = "1",
-    @Query("size") size = "10"
+    @Query("size") size = "10",
   ) {
     const loggedInUser = req.user as LoggedInUserType;
 
@@ -100,7 +100,7 @@ export class OrdersController {
         search,
       },
       parseInt(page),
-      parseInt(size)
+      parseInt(size),
     );
   }
 
@@ -113,7 +113,7 @@ export class OrdersController {
     @Query("clientId") clientId?: string,
     @Query("companyId") companyId?: string,
     @Query("proccessed") proccessed?: string,
-    @Query("notComplete") notComplete?: string
+    @Query("notComplete") notComplete?: string,
   ) {
     const loggedInUser = req.user as LoggedInUserType;
 
@@ -134,12 +134,12 @@ export class OrdersController {
         proccessed,
         notComplete,
       },
-      loggedInUser
+      loggedInUser,
     );
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post("/reset-delivery-count")
+  @Get("/reset-delivery-count")
   async resetDeliveryCount(
     @Req() req,
     @Query("status") status?: OrderStatus,
@@ -148,13 +148,14 @@ export class OrdersController {
     @Query("companyId") companyId?: string,
     @Query("from") from?: string,
     @Query("to") to?: string,
-    @Query("search") search?: string
+    @Query("search") search?: string,
   ) {
     const loggedInUser = req.user as LoggedInUserType;
 
     if (loggedInUser.role === "COMPANY_ADMIN") {
       companyId = loggedInUser.id + "";
     }
+
     return this.ordersService.resetDeliveryCount({
       status,
       deliveryId: deliveryId ? Number(deliveryId) : undefined,
@@ -177,7 +178,7 @@ export class OrdersController {
     @Query("companyId") companyId?: string,
     @Query("from") from?: string,
     @Query("to") to?: string,
-    @Query("search") search?: string
+    @Query("search") search?: string,
   ) {
     const loggedInUser = req.user;
 
@@ -234,7 +235,7 @@ export class OrdersController {
     // Write file to response
     res.setHeader(
       "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.setHeader("Content-Disposition", "attachment; filename=orders.xlsx");
 
@@ -247,7 +248,7 @@ export class OrdersController {
   async getAllDeliveriesWithLastOrders(
     @Req() req,
     @Query("page") page = "1",
-    @Query("size") size = "10"
+    @Query("size") size = "10",
   ) {
     const loggedInUser = req.user as LoggedInUserType;
     let companyId: string | undefined = undefined;
@@ -261,7 +262,7 @@ export class OrdersController {
         companyId: companyId ? Number(companyId) : undefined,
       },
       parseInt(page),
-      parseInt(size)
+      parseInt(size),
     );
   }
 
@@ -270,7 +271,7 @@ export class OrdersController {
   async getStatistics(
     @Req() req,
     @Query("vendorId") vendorId?: string,
-    @Query("deliveryId") deliveryId?: string
+    @Query("deliveryId") deliveryId?: string,
   ) {
     const loggedInUser = req.user as LoggedInUserType;
 
@@ -284,7 +285,7 @@ export class OrdersController {
         ? loggedInUser.id
         : deliveryId
           ? +deliveryId
-          : undefined
+          : undefined,
     );
   }
 
@@ -301,7 +302,7 @@ export class OrdersController {
   async update(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateOrderDto,
-    @Req() req
+    @Req() req,
   ) {
     const loggedInUser = req.user as LoggedInUserType;
 
