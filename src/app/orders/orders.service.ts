@@ -641,9 +641,6 @@ export class OrdersService {
       where: { id },
       data: {
         ...dto,
-        deliveryFee: dto.shipping
-          ? (dto.shipping * oldOrder.company.deliveryPrecent) / 100
-          : 0,
       },
     });
 
