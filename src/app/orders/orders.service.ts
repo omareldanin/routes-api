@@ -5,7 +5,12 @@ import {
 } from "@nestjs/common";
 import { Prisma, OrderStatus } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
-import { CreateOrderDto, UpdateOrderDto } from "./order.dto";
+import {
+  CreateOrderByClientDto,
+  CreateOrderDto,
+  UpdateOrderDto,
+  updateOrdersDto,
+} from "./order.dto";
 import { startOfMonth, subMonths } from "date-fns";
 import { LoggedInUserType } from "./orders.controller";
 import { NotificationService } from "../notification/notification.service";
@@ -152,6 +157,70 @@ export class OrdersService {
     return orders;
   }
 
+  async createOneByCLient(dto: CreateOrderByClientDto) {
+    const client = await this.prisma.client.findFirst({
+      where: {
+        key: dto.key,
+      },
+      include: {
+        company: true,
+      },
+    });
+
+    if (!client) {
+      throw new NotFoundException("client not found");
+    }
+
+    const order = await this.prisma.order.create({
+      data: {
+        clientId: client.id,
+        companyId: client.companyId,
+        from: dto.from,
+        to: dto.to,
+        notes: dto.notes,
+        confirmed: client.activeShipping,
+        shipping: client.activeShipping ? client.shippingValue : 0,
+        deliveryFee: client.activeShipping
+          ? (client.shippingValue * client.company.deliveryPrecent) / 100
+          : 0,
+        status: "STARTED",
+        companyConfirm: client.activeShipping,
+      },
+    });
+
+    // Create timeline records for all orders
+    const timeline = await this.prisma.orderTimeline.create({
+      data: {
+        orderId: order.id,
+        status: order.status,
+        note: "Order created",
+      },
+    });
+    if (client.activeShipping) {
+      const deliveries = await this.prisma.delivery.findMany({
+        where: {
+          companyId: client.companyId,
+          online: true,
+        },
+        select: {
+          user: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+      deliveries.forEach(async (delivery) => {
+        await this.notificationService.sendNotification({
+          title: "طلب جديد",
+          content: ` هناك طلب جديد من العميل ${client.name} `,
+          userId: delivery.user.id,
+        });
+      });
+    }
+    return order;
+  }
+
   async findAll(
     filters: {
       status?: OrderStatus;
@@ -162,6 +231,7 @@ export class OrdersService {
       to?: string;
       search?: string;
       proccessed?: string;
+      confirmed?: string;
       notComplete?: string;
     },
     page = 1,
@@ -177,6 +247,7 @@ export class OrdersService {
       search,
       proccessed,
       notComplete,
+      confirmed,
     } = filters;
 
     const startDate = new Date(from);
@@ -198,6 +269,11 @@ export class OrdersService {
               : {}),
         },
         { ...(proccessed ? { processed: false } : {}) },
+        {
+          ...(confirmed === "false"
+            ? { confirmed: false }
+            : { confirmed: true }),
+        },
         {
           ...(deliveryId === -1
             ? { deliveryId: null }
@@ -325,6 +401,95 @@ export class OrdersService {
     };
   }
 
+  async getClientOrderByKey(
+    filters: {
+      key: string;
+    },
+    page = 1,
+    size = 10,
+  ) {
+    const client = await this.prisma.client.findFirst({
+      where: {
+        key: filters.key,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!client) {
+      throw new NotFoundException("client not found");
+    }
+
+    const skip = (page - 1) * size;
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where: {
+          deleted: false,
+          clientId: client.id,
+        },
+        skip,
+        take: size,
+        select: {
+          id: true,
+          total: true,
+          shipping: true,
+          deliveryFee: true,
+          notes: true,
+          from: true,
+          to: true,
+          status: true,
+          createdAt: true,
+          processed: true,
+          companyConfirm: true,
+          deliveryConfirm: true,
+          timeline: {
+            select: {
+              id: true,
+              status: true,
+              createdAt: true,
+            },
+          },
+          client: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          delivery: {
+            select: {
+              id: true,
+              user: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { id: "desc" },
+      }),
+      this.prisma.order.count({
+        where: {
+          deleted: false,
+          clientId: client.id,
+        },
+      }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        size,
+        count: total,
+        totalPages: Math.ceil(total / size),
+      },
+    };
+  }
+
   async findAllByClient(
     filters: {
       status?: OrderStatus;
@@ -417,6 +582,7 @@ export class OrdersService {
 
     const where: Prisma.OrderWhereInput = {
       deleted: false,
+      confirmed: true,
       ...(status ? { status } : {}),
       ...(deliveryId ? { deliveryId } : {}),
       ...(clientId ? { clientId } : {}),
@@ -732,6 +898,82 @@ export class OrdersService {
     }
 
     return updated;
+  }
+
+  async updateMany(data: updateOrdersDto) {
+    if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+      throw new BadRequestException("ids must be a non-empty array");
+    }
+
+    // Check invalid IDs
+    const existingOrders = await this.prisma.order.findMany({
+      where: { id: { in: data.ids } },
+      select: {
+        id: true,
+        company: {
+          select: {
+            id: true,
+            deliveryPrecent: true,
+          },
+        },
+      },
+    });
+
+    const existingIds = existingOrders.map((o) => o.id);
+
+    // If some IDs don't exist
+    const invalidIds = data.ids.filter((id) => !existingIds.includes(id));
+    if (invalidIds.length > 0) {
+      throw new NotFoundException(`Orders not found: ${invalidIds.join(", ")}`);
+    }
+
+    if (data.deliveryConfirm === true) {
+      await this.prisma.order.updateMany({
+        where: { id: { in: data.ids } },
+        data: { confirmed: true, deliveryConfirm: true, companyConfirm: false },
+      });
+    } else {
+      await this.prisma.order.updateMany({
+        where: { id: { in: data.ids } },
+        data: {
+          confirmed: true,
+          deliveryConfirm: false,
+          companyConfirm: true,
+          total: data.total,
+          shipping: data.shipping,
+          deliveryFee: data.shipping
+            ? (data.shipping * existingOrders[0].company.deliveryPrecent) / 100
+            : 0,
+        },
+      });
+    }
+
+    const deliveries = await this.prisma.delivery.findMany({
+      where: {
+        companyId: existingOrders[0].company.id,
+        online: true,
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    deliveries.forEach(async (delivery) => {
+      await this.notificationService.sendNotification({
+        title: "طلبات جديده",
+        content: ` هناك طلبات جديده`,
+        userId: delivery.user.id,
+      });
+    });
+
+    return {
+      message: "Orders deleted successfully",
+      count: data.ids.length,
+    };
   }
 
   async remove(id: number) {

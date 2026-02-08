@@ -6,6 +6,7 @@ import {
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateClientDto, UpdateClientDto } from "./client.dto";
+import { nanoid } from "nanoid";
 
 @Injectable()
 export class ClientsService {
@@ -13,20 +14,20 @@ export class ClientsService {
 
   async create(dto: CreateClientDto, companyAdminId: number) {
     const exists = await this.prisma.client.findFirst({
-      where: {
-        phone: dto.phone,
-      },
+      where: { phone: dto.phone },
     });
+
     if (exists)
-      throw new BadRequestException(
-        "Client with this phone or code already exists"
-      );
+      throw new BadRequestException("Client with this phone already exists");
 
     const company = await this.prisma.company.findUnique({
       where: { id: companyAdminId },
     });
+
     if (!company)
       throw new BadRequestException("Company not found for this admin");
+
+    const key = nanoid(10); // 🔹 short (10 chars)
 
     return this.prisma.client.create({
       data: {
@@ -34,6 +35,9 @@ export class ClientsService {
         name: dto.name,
         address: dto.address,
         companyId: company.id,
+        shippingValue: dto.shippingValue || 0,
+        activeShipping: dto.activeShipping === "true" ? true : false,
+        key,
       },
     });
   }
@@ -42,7 +46,7 @@ export class ClientsService {
     filters: { code?: string; name?: string; phone?: string },
     companyAdminId: number,
     page = 1,
-    size = 10
+    size = 10,
   ) {
     const { code, name, phone } = filters;
 
@@ -69,7 +73,6 @@ export class ClientsService {
     if (clientIds.length === 0) {
       return { data: [], pagination: { page, size, count: 0, totalPages: 0 } };
     }
-    console.log("sss", data);
 
     const orderStats = await this.prisma.order.groupBy({
       by: ["clientId"],
@@ -110,6 +113,30 @@ export class ClientsService {
     return client;
   }
 
+  async findOneByKey(key: string) {
+    const client = await this.prisma.client.findFirst({
+      where: { key },
+      select: {
+        id: true,
+        key: true,
+        address: true,
+        name: true,
+        company: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!client) throw new NotFoundException("Client not found");
+    return client;
+  }
+
   async update(id: number, dto: UpdateClientDto, companyAdminId: number) {
     const client = await this.prisma.client.findFirst({
       where: { id, companyId: companyAdminId },
@@ -118,7 +145,10 @@ export class ClientsService {
 
     return this.prisma.client.update({
       where: { id },
-      data: dto,
+      data: {
+        ...dto,
+        activeShipping: dto.activeShipping === "true" ? true : false,
+      },
     });
   }
 

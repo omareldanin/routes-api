@@ -45,82 +45,83 @@ enum NotificationTopic {
   ALL
 }
 
-
 model User {
-  id                Int             @id @default(autoincrement())
-  phone             String          @unique
-  name              String?
-  avatar            String?       @default("uploads/user.png")
-  fcm               String?
-  password          String
-  token             String?
-  refresh_token     String[]
-  role              UserRole
-  notifications     Notification[]
-  deleted           Boolean         @default(false)
-  active            Boolean         @default(false)
-  deletedAt         DateTime?
-  timeline          OrderTimeline[]
+  id            Int             @id @default(autoincrement())
+  phone         String          @unique
+  name          String?
+  avatar        String?         @default("uploads/user.png")
+  fcm           String?
+  password      String
+  token         String?
+  refresh_token String[]
+  role          UserRole
+  notifications Notification[]
+  deleted       Boolean         @default(false)
+  active        Boolean         @default(false)
+  deletedAt     DateTime?
+  timeline      OrderTimeline[]
   // relations---------------------------------------------------------------------//
-  company            Company?
-  delivery           Delivery?
-  admin              Admin?
+  company       Company?
+  delivery      Delivery?
+  admin         Admin?
   // --- OTHER --------------------------------------------------------------------- //
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 }
 
-
 model Delivery {
-  id                Int               @id 
-  code              String          @unique
-  longitudes        String?
-  latitude          String?
-  online            Boolean           @default(false)  
-  worksFroms        String             @default("9am")
-  worksTo           String             @default("5pm")
-  orders            Order[]
-  user              User              @relation(fields: [id], references: [id], onDelete: Cascade)
-  companyId         Int?
-  company           Company?          @relation(fields: [companyId], references: [id])
+  id         Int      @id
+  code       String   @unique
+  longitudes String?
+  latitude   String?
+  online     Boolean  @default(false)
+  worksFroms String   @default("9am")
+  worksTo    String   @default("5pm")
+  orders     Order[]
+  user       User     @relation(fields: [id], references: [id], onDelete: Cascade)
+  companyId  Int?
+  company    Company? @relation(fields: [companyId], references: [id])
 }
 
 model Admin {
-  id              Int               @id 
-  superAdmin      Boolean            @default(false)  
-  permissions     Permissions[]
-  user            User              @relation(fields: [id], references: [id], onDelete: Cascade)
+  id          Int           @id
+  superAdmin  Boolean       @default(false)
+  permissions Permissions[]
+  user        User          @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
 model Company {
-  id                      Int          @id
-  address                 String?
-  longitudes              String?
-  latitude                String?
-  min                     Int?
-  max                     Int?
-  deliveryPrecent         Int?
-  supscriptionStartDate   DateTime?
-  supscriptionEndDate     DateTime?
-  orders                  Order[]
-  deliveries              Delivery[]
-  clients                 Client[]
-  user                    User         @relation(fields: [id], references: [id], onDelete: Cascade)
+  id                    Int        @id
+  address               String?
+  longitudes            String?
+  latitude              String?
+  min                   Int?
+  max                   Int?
+  deliveryPrecent       Int?
+  supscriptionStartDate DateTime?
+  supscriptionEndDate   DateTime?
+  orders                Order[]
+  deliveries            Delivery[]
+  clients               Client[]
+  user                  User       @relation(fields: [id], references: [id], onDelete: Cascade)
   //-------------------------------------------------------------------------------
 }
-model Client {
-  id                Int             @id @default(autoincrement())
-  phone             String          @unique
-  name              String?
-  address              String?
-  companyId         Int?
-  company           Company?          @relation(fields: [companyId], references: [id])
-  orders            Order[]
-  // --- OTHER --------------------------------------------------------------------- //
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-}
 
+model Client {
+  id             Int      @id @default(autoincrement())
+  phone          String   @unique
+  name           String?
+  address        String?
+  companyId      Int?
+  company        Company? @relation(fields: [companyId], references: [id])
+  orders         Order[]
+  key            String?
+  shippingValue  Int?
+  activeShipping Boolean  @default(false)
+  // --- OTHER --------------------------------------------------------------------- //
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
 
 model Notification {
   // --- IDENTIFICATION --------------------------------------------------------------------- //
@@ -141,40 +142,40 @@ model Notification {
   @@index([userId])
 }
 
-model Order{
-  id                Int             @id @default(autoincrement())
-  total             Float           @default(0)
-  shipping          Float           @default(0)
-  deliveryFee      Float           @default(0)
-  notes             String?
-  from              String?
-  to                String?
-  status            OrderStatus     @default(STARTED)
-  deliveryId        Int?
-  clientId          Int?
-  delivery          Delivery?       @relation(fields: [deliveryId], references: [id])
-  companyId         Int?
-  company           Company?         @relation(fields: [companyId], references: [id])
-  client            Client?         @relation(fields: [clientId], references: [id])
-  companyConfirm    Boolean?        @default(false)
-  deliveryConfirm   Boolean?        @default(false)
-  paid              Boolean?        @default(false)
-  processed         Boolean?        @default(false)
-  deleted           Boolean?        @default(false)
-  timeline          OrderTimeline[]
+model Order {
+  id              Int             @id @default(autoincrement())
+  total           Float           @default(0)
+  shipping        Float           @default(0)
+  deliveryFee     Float           @default(0)
+  notes           String?
+  from            String?
+  to              String?
+  status          OrderStatus     @default(STARTED)
+  deliveryId      Int?
+  clientId        Int?
+  delivery        Delivery?       @relation(fields: [deliveryId], references: [id])
+  companyId       Int?
+  company         Company?        @relation(fields: [companyId], references: [id])
+  client          Client?         @relation(fields: [clientId], references: [id])
+  companyConfirm  Boolean?        @default(false)
+  deliveryConfirm Boolean?        @default(false)
+  paid            Boolean?        @default(false)
+  processed       Boolean?        @default(false)
+  confirmed       Boolean?        @default(true)
+  deleted         Boolean?        @default(false)
+  timeline        OrderTimeline[]
   // --- OTHER ---------------------------------------------------------------------//
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 
-
 model OrderTimeline {
-  id          Int          @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   orderId     Int
-  order       Order        @relation(fields: [orderId], references: [id])
+  order       Order       @relation(fields: [orderId], references: [id])
   status      OrderStatus
   note        String?
-  changedById Int?         // optional: who changed the status
-  changedBy   User?        @relation(fields: [changedById], references: [id])
-  createdAt   DateTime     @default(now())
+  changedById Int? // optional: who changed the status
+  changedBy   User?       @relation(fields: [changedById], references: [id])
+  createdAt   DateTime    @default(now())
 }

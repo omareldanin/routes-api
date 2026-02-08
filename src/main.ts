@@ -20,7 +20,7 @@ async function bootstrap() {
       transformOptions: {
         enableImplicitConversion: true, // 👈 auto convert string -> number/boolean
       },
-    })
+    }),
   );
 
   app.set("query parser", "extended"); // <-- Add this line

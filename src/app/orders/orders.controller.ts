@@ -16,7 +16,12 @@ import { OrdersService } from "./orders.service";
 
 import { UserRole, OrderStatus } from "@prisma/client";
 import { JwtAuthGuard } from "src/middlewares/jwt-auth.guard";
-import { CreateOrderDto, UpdateOrderDto } from "./order.dto";
+import {
+  CreateOrderByClientDto,
+  CreateOrderDto,
+  UpdateOrderDto,
+  updateOrdersDto,
+} from "./order.dto";
 import * as ExcelJS from "exceljs";
 import { Response } from "express";
 
@@ -60,6 +65,17 @@ export class OrdersController {
     }
   }
 
+  @Post("createByClient")
+  async createByClient(@Body() dto: CreateOrderByClientDto) {
+    return this.ordersService.createOneByCLient(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("confirmOrders")
+  async confirmOrders(@Body() dto: updateOrdersDto) {
+    return this.ordersService.updateMany(dto);
+  }
+
   // ✅ Get all (pagination + filters)
   @UseGuards(JwtAuthGuard)
   @Get()
@@ -73,6 +89,7 @@ export class OrdersController {
     @Query("to") to?: string,
     @Query("search") search?: string,
     @Query("proccessed") proccessed?: string,
+    @Query("confirmed") confirmed?: string,
     @Query("notComplete") notComplete?: string,
     @Query("page") page = "1",
     @Query("size") size = "10",
@@ -98,6 +115,22 @@ export class OrdersController {
         from,
         to,
         search,
+        confirmed,
+      },
+      parseInt(page),
+      parseInt(size),
+    );
+  }
+
+  @Get("getAllForClient")
+  async getAllForClient(
+    @Query("key") key?: string,
+    @Query("page") page = "1",
+    @Query("size") size = "10",
+  ) {
+    return this.ordersService.getClientOrderByKey(
+      {
+        key,
       },
       parseInt(page),
       parseInt(size),

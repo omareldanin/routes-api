@@ -33,7 +33,7 @@ export interface LoggedInUserType {
 export class ClientsController {
   constructor(
     private readonly clientsService: ClientsService,
-    private prisma: PrismaService
+    private prisma: PrismaService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -52,7 +52,7 @@ export class ClientsController {
     @Query("name") name?: string,
     @Query("phone") phone?: string,
     @Query("page") page = "1",
-    @Query("size") size = "10"
+    @Query("size") size = "10",
   ) {
     const loggedInUser = req.user as LoggedInUserType;
     let companyId: number | undefined = undefined;
@@ -60,6 +60,7 @@ export class ClientsController {
     if (loggedInUser.role === "COMPANY_ADMIN") {
       companyId = loggedInUser.id;
     }
+
     if (loggedInUser.role === "DELIVERY") {
       const user = await this.prisma.user.findUnique({
         where: {
@@ -84,8 +85,13 @@ export class ClientsController {
       { code, name, phone },
       companyId,
       parseInt(page),
-      parseInt(size)
+      parseInt(size),
     );
+  }
+
+  @Get("key/:key")
+  async findOneByKey(@Param("key") key: string) {
+    return this.clientsService.findOneByKey(key);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -101,8 +107,10 @@ export class ClientsController {
   async update(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdateClientDto,
-    @Req() req
+    @Req() req,
   ) {
+    console.log(dto);
+
     const loggedInUser = req.user as LoggedInUserType;
     return this.clientsService.update(id, dto, loggedInUser.id);
   }
