@@ -521,6 +521,7 @@ export class OrdersService {
 
     const where: Prisma.OrderWhereInput = {
       deleted: false,
+      confirmed: true,
       ...(notComplete
         ? { status: { in: ["ACCEPTED", "RECEIVED", "POSTPOND"] } }
         : status

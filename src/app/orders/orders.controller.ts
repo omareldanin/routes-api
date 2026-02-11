@@ -104,6 +104,9 @@ export class OrdersController {
       deliveryId = loggedInUser.id + "";
     }
 
+    if (loggedInUser.role === "DELIVERY") {
+      confirmed = "true";
+    }
     return this.ordersService.findAll(
       {
         status,
