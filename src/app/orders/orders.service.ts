@@ -14,12 +14,14 @@ import {
 import { startOfMonth, subMonths } from "date-fns";
 import { LoggedInUserType } from "./orders.controller";
 import { NotificationService } from "../notification/notification.service";
+import { SocketGateway } from "src/socket/socket.gateway";
 
 @Injectable()
 export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private notificationService: NotificationService,
+    private readonly socketGateway: SocketGateway,
   ) {}
   async getMonthlySales(companyId: number) {
     // تاريخ أول يوم من الشهر الحالي ناقص 11 شهر (يعني آخر 12 شهر)
@@ -196,6 +198,7 @@ export class OrdersService {
         note: "Order created",
       },
     });
+
     if (client.activeShipping) {
       const deliveries = await this.prisma.delivery.findMany({
         where: {
@@ -218,6 +221,12 @@ export class OrdersService {
         });
       });
     }
+
+    this.socketGateway.notifyNewOrder(order.companyId, {
+      id: order.id,
+      name: client.name,
+      total: order.total,
+    });
     return order;
   }
 
@@ -348,6 +357,7 @@ export class OrdersService {
           processed: true,
           companyConfirm: true,
           deliveryConfirm: true,
+          deleted: true,
           timeline: {
             select: {
               id: true,
@@ -822,7 +832,11 @@ export class OrdersService {
       });
     }
 
-    if (dto.deliveryId && loggedInUser.role !== "DELIVERY") {
+    if (
+      dto.deliveryId &&
+      oldOrder.confirmed &&
+      loggedInUser.role !== "DELIVERY"
+    ) {
       const delivery = await this.prisma.delivery.findFirst({
         where: {
           id: +dto.deliveryId,
@@ -902,78 +916,106 @@ export class OrdersService {
   }
 
   async updateMany(data: updateOrdersDto) {
-    if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+    if (!Array.isArray(data.ids) || data.ids.length === 0) {
       throw new BadRequestException("ids must be a non-empty array");
     }
 
-    // Check invalid IDs
-    const existingOrders = await this.prisma.order.findMany({
-      where: { id: { in: data.ids } },
+    const ids = [...new Set(data.ids)]; // remove duplicates
+
+    // Get only required fields
+    const orders = await this.prisma.order.findMany({
+      where: { id: { in: ids } },
       select: {
         id: true,
-        company: {
-          select: {
-            id: true,
-            deliveryPrecent: true,
-          },
-        },
+        deliveryId: true,
+        client: { select: { name: true } },
+        companyId: true,
+        company: { select: { deliveryPrecent: true } },
       },
     });
 
-    const existingIds = existingOrders.map((o) => o.id);
+    // Fast invalid ID check (O(n))
+    const foundIds = new Set(orders.map((o) => o.id));
+    const invalidIds = ids.filter((id) => !foundIds.has(id));
 
-    // If some IDs don't exist
-    const invalidIds = data.ids.filter((id) => !existingIds.includes(id));
-    if (invalidIds.length > 0) {
+    if (invalidIds.length) {
       throw new NotFoundException(`Orders not found: ${invalidIds.join(", ")}`);
     }
 
-    if (data.deliveryConfirm === true) {
-      await this.prisma.order.updateMany({
-        where: { id: { in: data.ids } },
-        data: { confirmed: true, deliveryConfirm: true, companyConfirm: false },
-      });
-    } else {
-      await this.prisma.order.updateMany({
-        where: { id: { in: data.ids } },
-        data: {
-          confirmed: true,
-          deliveryConfirm: false,
-          companyConfirm: true,
-          total: data.total,
-          shipping: data.shipping,
-          deliveryFee: data.shipping
-            ? (data.shipping * existingOrders[0].company.deliveryPrecent) / 100
-            : 0,
-        },
-      });
+    // Calculate delivery fee once (if same company logic)
+    let deliveryFee = 0;
+    if (!data.deliveryConfirm && data.shipping) {
+      deliveryFee = (data.shipping * orders[0].company.deliveryPrecent) / 100;
     }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.order.updateMany({
+        where: { id: { in: ids } },
+        data: data.deliveryConfirm
+          ? {
+              confirmed: true,
+              deliveryConfirm: true,
+              companyConfirm: false,
+            }
+          : {
+              confirmed: true,
+              deliveryConfirm: false,
+              companyConfirm: true,
+              total: data.total,
+              shipping: data.shipping,
+              deliveryFee,
+            },
+      });
+    });
+
+    // ----------- Notifications --------------
+
+    const companyIds = [...new Set(orders.map((o) => o.companyId))];
 
     const deliveries = await this.prisma.delivery.findMany({
       where: {
-        companyId: existingOrders[0].company.id,
+        companyId: { in: companyIds },
         online: true,
       },
       select: {
-        user: {
-          select: {
-            id: true,
-          },
-        },
+        companyId: true,
+        user: { select: { id: true } },
       },
     });
 
-    deliveries.forEach(async (delivery) => {
-      await this.notificationService.sendNotification({
-        title: "طلبات جديده",
-        content: ` هناك طلبات جديده`,
-        userId: delivery.user.id,
-      });
-    });
+    const notifications: Promise<any>[] = [];
+
+    for (const order of orders) {
+      if (order.deliveryId) {
+        notifications.push(
+          this.notificationService.sendNotification({
+            title: "طلب جديد",
+            content: `هناك طلب جديد مرسل إليك برقم ${order.id}`,
+            userId: order.deliveryId,
+          }),
+        );
+      } else {
+        const companyDeliveries = deliveries.filter(
+          (d) => d.companyId === order.companyId,
+        );
+
+        for (const delivery of companyDeliveries) {
+          notifications.push(
+            this.notificationService.sendNotification({
+              title: "طلب جديد",
+              content: `هناك طلبات جديدة من العميل ${order.client.name}`,
+              userId: delivery.user.id,
+            }),
+          );
+        }
+      }
+    }
+
+    await Promise.all(notifications);
 
     return {
-      message: "Orders deleted successfully",
-      count: data.ids.length,
+      message: "Orders updated successfully",
+      count: ids.length,
     };
   }
 

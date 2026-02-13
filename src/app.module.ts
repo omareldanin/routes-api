@@ -12,6 +12,8 @@ import { ChatGateway } from "./order.gateway";
 
 import { ClientsModule } from "./app/clients/clients.module";
 import { OrdersModule } from "./app/orders/orders.module";
+import { SocketGateway } from './socket/socket.gateway';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -24,8 +26,9 @@ import { OrdersModule } from "./app/orders/orders.module";
     NotificationModule,
     ClientsModule,
     OrdersModule,
+    SocketModule,
   ],
   controllers: [AppController],
-  providers: [AppService, ChatGateway],
+  providers: [AppService, ChatGateway, SocketGateway],
 })
 export class AppModule {}
