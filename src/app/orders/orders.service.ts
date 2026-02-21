@@ -764,6 +764,14 @@ export class OrdersService {
         : {}),
     };
 
+    const checkIfNotComplete = await this.prisma.order.count({
+      where: { ...where, status: { notIn: ["DELIVERED", "CANCELED"] } },
+    });
+
+    if (checkIfNotComplete > 0) {
+      throw new BadRequestException("يوجد اوردرات لم يتم تسليمها");
+    }
+
     const updated = await this.prisma.order.updateMany({
       where: { ...where, processed: false, status: "DELIVERED" },
       data: { processed: true },
