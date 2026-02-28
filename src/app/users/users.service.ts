@@ -278,7 +278,12 @@ export class UsersService {
               min: data.min,
               max: data.max,
               deliveryPrecent: data.deliveryPrecent,
-              confirmOrders: data.confirmOrders === "true" ? true : false,
+              confirmOrders:
+                data.confirmOrders === "true"
+                  ? true
+                  : data.confirmOrders === "false"
+                    ? false
+                    : undefined,
             },
           },
         }
