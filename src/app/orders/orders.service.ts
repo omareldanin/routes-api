@@ -136,7 +136,7 @@ export class OrdersService {
         }),
       ),
     );
-    if (loggedInUser.role !== "DELIVERY") {
+    if (loggedInUser.role !== "DELIVERY" && company.confirmOrders) {
       const deliveries = await this.prisma.delivery.findMany({
         where: {
           companyId,
