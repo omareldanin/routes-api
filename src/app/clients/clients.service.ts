@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { CreateClientDto, UpdateClientDto } from "./client.dto";
 import { nanoid } from "nanoid";
+import * as XLSX from "xlsx";
 
 @Injectable()
 export class ClientsService {
@@ -42,6 +43,70 @@ export class ClientsService {
     });
   }
 
+  async createFromExcel(file: Express.Multer.File, companyAdminId: number) {
+    if (!file) {
+      throw new BadRequestException("Excel file is required");
+    }
+
+    // 1️⃣ Validate company
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyAdminId },
+    });
+
+    if (!company) {
+      throw new BadRequestException("Company not found");
+    }
+
+    // 2️⃣ Read Excel buffer
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+
+    if (!rows.length) {
+      throw new BadRequestException("Excel sheet is empty");
+    }
+
+    // 3️⃣ Get all phones from sheet
+    // const phones = rows.map((r) => String(r.phone));
+
+    // // 4️⃣ Check existing clients
+    // const existingClients = await this.prisma.client.findMany({
+    //   where: {
+    //     phone: { in: phones },
+    //   },
+    //   select: { phone: true },
+    // });
+
+    // const existingPhones = new Set(existingClients.map((c) => c.phone));
+
+    // 5️⃣ Prepare new clients only
+    const newClients = rows.map((r) => ({
+      name: r.name,
+      phone: String(r.phone).startsWith("0") ? r.phone : "0" + r.phone,
+      address: r.address || "",
+      shippingValue: 0,
+      activeShipping: false,
+      companyId: company.id,
+      key: nanoid(10),
+    }));
+
+    if (!newClients.length) {
+      throw new BadRequestException("All clients already exist");
+    }
+
+    // 6️⃣ Bulk insert
+    const result = await this.prisma.client.createMany({
+      data: newClients,
+      skipDuplicates: true,
+    });
+
+    return {
+      created: result.count,
+      skipped: rows.length - result.count,
+    };
+  }
   async findAll(
     filters: { code?: string; name?: string; phone?: string },
     companyAdminId: number,

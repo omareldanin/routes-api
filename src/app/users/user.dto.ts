@@ -128,6 +128,10 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
+  confirmOrders?: string;
+
+  @IsOptional()
+  @IsString()
   worksFroms?: string;
 
   @IsOptional()

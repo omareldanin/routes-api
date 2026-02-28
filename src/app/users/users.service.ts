@@ -23,7 +23,7 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(
       dto.password + env.PASSWORD_SALT,
-      12
+      12,
     );
 
     const user = await this.prisma.user.create({
@@ -242,7 +242,7 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(
       data.password + env.PASSWORD_SALT,
-      12
+      12,
     );
 
     if (data.supscriptionStartDate) {
@@ -278,6 +278,7 @@ export class UsersService {
               min: data.min,
               max: data.max,
               deliveryPrecent: data.deliveryPrecent,
+              confirmOrders: data.confirmOrders === "true" ? true : false,
             },
           },
         }
@@ -371,7 +372,7 @@ export class UsersService {
             supscriptionEndDate: newEndDate,
           },
         });
-      })
+      }),
     );
 
     return {
@@ -438,7 +439,7 @@ export class UsersService {
       data: {
         password: bcrypt.hashSync(
           data.password + (env.PASSWORD_SALT as string),
-          12
+          12,
         ),
       },
       select: {

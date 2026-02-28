@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
@@ -16,7 +17,7 @@ import { ClientsService } from "./clients.service";
 import { UserRole } from "@prisma/client";
 import { JwtAuthGuard } from "src/middlewares/jwt-auth.guard";
 import { CreateClientDto, UpdateClientDto } from "./client.dto";
-import { NoFilesInterceptor } from "@nestjs/platform-express";
+import { FileInterceptor, NoFilesInterceptor } from "@nestjs/platform-express";
 import { PrismaService } from "src/prisma/prisma.service";
 
 export interface LoggedInUserType {
@@ -42,6 +43,12 @@ export class ClientsController {
   async create(@Body() dto: CreateClientDto, @Req() req) {
     const loggedInUser = req.user as LoggedInUserType;
     return this.clientsService.create(dto, loggedInUser.id);
+  }
+
+  @Post("upload")
+  @UseInterceptors(FileInterceptor("file"))
+  uploadExcel(@UploadedFile() file: Express.Multer.File) {
+    return this.clientsService.createFromExcel(file, 203);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -109,8 +116,6 @@ export class ClientsController {
     @Body() dto: UpdateClientDto,
     @Req() req,
   ) {
-    console.log(dto);
-
     const loggedInUser = req.user as LoggedInUserType;
     return this.clientsService.update(id, dto, loggedInUser.id);
   }
