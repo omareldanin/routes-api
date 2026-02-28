@@ -69,7 +69,7 @@ export class OrdersService {
     // Create multiple orders
     let company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { deliveryPrecent: true },
+      select: { deliveryPrecent: true, confirmOrders: true },
     });
 
     const client = await this.prisma.client.findUnique({
@@ -93,6 +93,7 @@ export class OrdersService {
                 select: {
                   id: true,
                   deliveryPrecent: true,
+                  confirmOrders: true,
                 },
               },
             },
@@ -113,6 +114,8 @@ export class OrdersService {
           data: {
             ...dto,
             companyId,
+            confirmed:
+              loggedInUser.role === "DELIVERY" ? true : company.confirmOrders,
             deliveryFee: dto.shipping
               ? (dto.shipping * company.deliveryPrecent) / 100
               : 0,
