@@ -24,6 +24,7 @@ export const userSelect = {
       supscriptionEndDate: true,
       supscriptionStartDate: true,
       deliveryPrecent: true,
+      confirmOrders: true,
     },
   },
   delivery: {
@@ -40,7 +41,7 @@ export const userSelect = {
 export const userSelectReform = (
   user: Prisma.UserGetPayload<{
     select: typeof userSelect;
-  }> | null
+  }> | null,
 ) => {
   if (!user) {
     throw new Error("لم يتم العثور على المستخدم");
@@ -56,6 +57,7 @@ export const userSelectReform = (
     address: user.company?.address,
     supscriptionEndDate: user.company?.supscriptionEndDate,
     supscriptionStartDate: user.company?.supscriptionStartDate,
+    confirmOrders: user.company?.confirmOrders,
     max: user.company?.max,
     min: user.company?.min,
     deliveryPrecent: user.company?.deliveryPrecent,
